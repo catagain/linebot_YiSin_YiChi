@@ -7,13 +7,16 @@ from typing import Optional
 
 import pyodbc
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+
 PROJECT_CONFIG = {
     "yiqi": {
-        "base_dir": Path("YiQi/linebot_for_JayWu-20251109jaywu_complete"),
+        "base_dir": REPO_ROOT / "YiQi" / "linebot_for_JayWu-20251109jaywu_complete",
         "table_suffix": "yiqi",
     },
     "yisin": {
-        "base_dir": Path("YiSin/linebot_for_JayWu-20251109jaywu_complete"),
+        "base_dir": REPO_ROOT / "YiSin" / "linebot_for_JayWu-20251109jaywu_complete",
         "table_suffix": "yisin",
     },
 }
@@ -65,6 +68,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_json(path: Path):
+    if not path.exists():
+        raise FileNotFoundError(
+            f"JSON file not found: {path} (cwd={Path.cwd()})"
+        )
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -321,7 +328,7 @@ def main() -> None:
         return
 
     if args.env_file:
-        load_env_file(Path(args.env_file))
+        load_env_file(Path(args.env_file).expanduser().resolve())
 
     selected_projects = [args.project] if args.project != "all" else list(PROJECT_CONFIG.keys())
 

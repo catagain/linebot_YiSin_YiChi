@@ -7,13 +7,16 @@ from typing import Any, Dict, List, Optional
 
 import pymysql
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+
 PROJECT_CONFIG = {
     "yiqi": {
-        "base_dir": Path("YiQi/linebot_for_JayWu-20251109jaywu_complete"),
+        "base_dir": REPO_ROOT / "YiQi" / "linebot_for_JayWu-20251109jaywu_complete",
         "table_suffix": "yiqi",
     },
     "yisin": {
-        "base_dir": Path("YiSin/linebot_for_JayWu-20251109jaywu_complete"),
+        "base_dir": REPO_ROOT / "YiSin" / "linebot_for_JayWu-20251109jaywu_complete",
         "table_suffix": "yisin",
     },
 }
@@ -47,6 +50,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_json(path: Path) -> Any:
+    if not path.exists():
+        raise FileNotFoundError(
+            "JSON file not found: %s (cwd=%s)" % (path, Path.cwd())
+        )
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -67,7 +74,7 @@ def load_env_file(path: Path) -> None:
 
 
 def auto_load_env(selected_projects: List[str]) -> None:
-    candidates = [Path(".env")]
+    candidates = [Path.cwd() / ".env", REPO_ROOT / ".env"]
     for project in selected_projects:
         candidates.append(PROJECT_CONFIG[project]["base_dir"] / ".env")
 
@@ -233,7 +240,7 @@ def main() -> None:
     selected_projects = [args.project] if args.project != "all" else list(PROJECT_CONFIG.keys())
 
     if args.env_file:
-        load_env_file(Path(args.env_file))
+        load_env_file(Path(args.env_file).expanduser().resolve())
     else:
         auto_load_env(selected_projects)
 
