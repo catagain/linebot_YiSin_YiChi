@@ -37,6 +37,23 @@ def parse_args() -> argparse.Namespace:
         default="all",
         help="Select which JSON dataset to migrate.",
     )
+    parser.add_argument(
+        "--env-file",
+        default=".env.sqlserver",
+        help="Optional env file path. Default: .env.sqlserver",
+    )
+    parser.add_argument("--host", help="SQL Server host.")
+    parser.add_argument("--port", help="SQL Server port. Default: 1433")
+    parser.add_argument("--db", help="SQL Server database name.")
+    parser.add_argument("--user", help="SQL Server username.")
+    parser.add_argument("--password", help="SQL Server password.")
+    parser.add_argument("--driver", help="ODBC driver name.")
+    parser.add_argument("--encrypt", choices=["yes", "no"], help="Encrypt connection.")
+    parser.add_argument(
+        "--trust-cert",
+        choices=["yes", "no"],
+        help="Trust SQL Server certificate.",
+    )
     return parser.parse_args()
 
 
@@ -45,18 +62,47 @@ def load_json(path: Path):
         return json.load(f)
 
 
-def get_sqlserver_connection() -> pyodbc.Connection:
-    driver = os.getenv("SQLSERVER_DRIVER", "ODBC Driver 18 for SQL Server")
-    server = os.getenv("SQLSERVER_HOST")
-    port = os.getenv("SQLSERVER_PORT", "1433")
-    database = os.getenv("SQLSERVER_DB")
-    user = os.getenv("SQLSERVER_USER")
-    password = os.getenv("SQLSERVER_PASSWORD")
-    encrypt = os.getenv("SQLSERVER_ENCRYPT", "yes")
-    trust_cert = os.getenv("SQLSERVER_TRUST_CERT", "yes")
+def load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+
+    for line in path.read_text(encoding="utf-8").splitlines():
+        clean = line.strip()
+        if not clean or clean.startswith("#") or "=" not in clean:
+            continue
+        key, value = clean.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+def pick_setting(cli_value: str | None, env_name: str, default: str | None = None) -> str | None:
+    if cli_value is not None and cli_value != "":
+        return cli_value
+    env_value = os.getenv(env_name)
+    if env_value is not None and env_value != "":
+        return env_value
+    return default
+
+
+def get_sqlserver_connection(args: argparse.Namespace) -> pyodbc.Connection:
+    driver = pick_setting(args.driver, "SQLSERVER_DRIVER", "ODBC Driver 18 for SQL Server")
+    server = pick_setting(args.host, "SQLSERVER_HOST")
+    port = pick_setting(args.port, "SQLSERVER_PORT", "1433")
+    database = pick_setting(args.db, "SQLSERVER_DB")
+    user = pick_setting(args.user, "SQLSERVER_USER")
+    password = pick_setting(args.password, "SQLSERVER_PASSWORD")
+    encrypt = pick_setting(args.encrypt, "SQLSERVER_ENCRYPT", "yes")
+    trust_cert = pick_setting(args.trust_cert, "SQLSERVER_TRUST_CERT", "yes")
 
     if not server or not database:
-        raise ValueError("SQLSERVER_HOST and SQLSERVER_DB are required in environment variables.")
+        raise ValueError(
+            "Missing SQL Server settings. Please provide host/database by one of the following ways:\n"
+            "1) Env vars: SQLSERVER_HOST and SQLSERVER_DB\n"
+            "2) CLI args: --host <host> --db <database>\n"
+            "3) Env file: set values in --env-file (default .env.sqlserver)"
+        )
 
     if user and password:
         conn_str = (
@@ -209,9 +255,12 @@ def migrate_project(conn: pyodbc.Connection, project_key: str, dataset: str) -> 
 
 def main() -> None:
     args = parse_args()
+    if args.env_file:
+        load_env_file(Path(args.env_file))
+
     selected_projects = [args.project] if args.project != "all" else list(PROJECT_CONFIG.keys())
 
-    conn = get_sqlserver_connection()
+    conn = get_sqlserver_connection(args)
     try:
         for project_key in selected_projects:
             migrate_project(conn, project_key, args.dataset)

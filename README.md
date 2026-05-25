@@ -117,6 +117,25 @@ $env:SQLSERVER_TRUST_CERT = "yes"
 python scripts/migrate_json_to_sqlserver.py --project all --dataset all
 ```
 
+若你不想先設定環境變數，可直接帶連線參數：
+
+```powershell
+python scripts/migrate_json_to_sqlserver.py --project all --dataset all --host 127.0.0.1 --db linebot --user sa --password your_password
+```
+
+也可以在根目錄建立 `.env.sqlserver`（程式會自動讀取）：
+
+```env
+SQLSERVER_HOST=127.0.0.1
+SQLSERVER_PORT=1433
+SQLSERVER_DB=linebot
+SQLSERVER_USER=sa
+SQLSERVER_PASSWORD=your_password
+SQLSERVER_DRIVER=ODBC Driver 18 for SQL Server
+SQLSERVER_ENCRYPT=yes
+SQLSERVER_TRUST_CERT=yes
+```
+
 只搬運 YiQi 的 available_addresses.json：
 
 ```powershell
