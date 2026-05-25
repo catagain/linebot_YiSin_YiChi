@@ -73,6 +73,62 @@ python line_bot.py
 
 YiSin 專案請把路徑改成 YiSin 對應目錄。
 
+## JSON 搬運到 SQL Server
+
+已提供共用搬運程式：
+
+- scripts/migrate_json_to_sqlserver.py
+
+此程式會把兩種 JSON 匯入 SQL Server，並依專案分流到不同資料表：
+
+- YiQi:
+  - addresses.json -> case_names_yiqi
+  - available_addresses.json -> available_addresses_yiqi
+- YiSin:
+  - addresses.json -> case_names_yisin
+  - available_addresses.json -> available_addresses_yisin
+
+### 1) 安裝搬運程式依賴
+
+```powershell
+pip install -r scripts/requirements-sqlserver.txt
+```
+
+### 2) 設定 SQL Server 環境變數
+
+```powershell
+$env:SQLSERVER_HOST = "127.0.0.1"
+$env:SQLSERVER_PORT = "1433"
+$env:SQLSERVER_DB = "linebot"
+$env:SQLSERVER_USER = "sa"
+$env:SQLSERVER_PASSWORD = "your_password"
+$env:SQLSERVER_DRIVER = "ODBC Driver 18 for SQL Server"
+$env:SQLSERVER_ENCRYPT = "yes"
+$env:SQLSERVER_TRUST_CERT = "yes"
+```
+
+若你使用 Windows 驗證，可不設定 SQLSERVER_USER 與 SQLSERVER_PASSWORD。
+
+### 3) 執行搬運
+
+搬運全部專案、全部 JSON：
+
+```powershell
+python scripts/migrate_json_to_sqlserver.py --project all --dataset all
+```
+
+只搬運 YiQi 的 available_addresses.json：
+
+```powershell
+python scripts/migrate_json_to_sqlserver.py --project yiqi --dataset available_addresses
+```
+
+只搬運 YiSin 的 addresses.json：
+
+```powershell
+python scripts/migrate_json_to_sqlserver.py --project yisin --dataset case_names
+```
+
 ## Git 管理原則
 
 - 使用最外層 LINE_bot_JayWu 當作唯一 Git 倉庫根目錄
