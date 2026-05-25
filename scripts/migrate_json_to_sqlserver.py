@@ -3,6 +3,7 @@ import json
 import os
 from datetime import date
 from pathlib import Path
+from typing import Optional
 
 import pyodbc
 
@@ -54,6 +55,11 @@ def parse_args() -> argparse.Namespace:
         choices=["yes", "no"],
         help="Trust SQL Server certificate.",
     )
+    parser.add_argument(
+        "--list-drivers",
+        action="store_true",
+        help="Print installed ODBC drivers and exit.",
+    )
     return parser.parse_args()
 
 
@@ -77,7 +83,7 @@ def load_env_file(path: Path) -> None:
             os.environ[key] = value
 
 
-def pick_setting(cli_value: str | None, env_name: str, default: str | None = None) -> str | None:
+def pick_setting(cli_value: Optional[str], env_name: str, default: Optional[str] = None) -> Optional[str]:
     if cli_value is not None and cli_value != "":
         return cli_value
     env_value = os.getenv(env_name)
@@ -86,8 +92,37 @@ def pick_setting(cli_value: str | None, env_name: str, default: str | None = Non
     return default
 
 
+def resolve_sqlserver_driver(preferred_driver: Optional[str]) -> str:
+    installed = [d.strip() for d in pyodbc.drivers() if d and d.strip()]
+    installed_set = set(installed)
+
+    if preferred_driver and preferred_driver in installed_set:
+        return preferred_driver
+
+    candidates = [
+        "ODBC Driver 18 for SQL Server",
+        "ODBC Driver 17 for SQL Server",
+        "ODBC Driver 13 for SQL Server",
+        "SQL Server",
+    ]
+
+    for candidate in candidates:
+        if candidate in installed_set:
+            return candidate
+
+    if installed:
+        raise ValueError(
+            "No SQL Server ODBC driver found. Installed drivers are: "
+            + ", ".join(installed)
+        )
+
+    raise ValueError(
+        "No ODBC drivers detected by pyodbc. Please install Microsoft ODBC Driver 18 for SQL Server."
+    )
+
+
 def get_sqlserver_connection(args: argparse.Namespace) -> pyodbc.Connection:
-    driver = pick_setting(args.driver, "SQLSERVER_DRIVER", "ODBC Driver 18 for SQL Server")
+    requested_driver = pick_setting(args.driver, "SQLSERVER_DRIVER", "ODBC Driver 18 for SQL Server")
     server = pick_setting(args.host, "SQLSERVER_HOST")
     port = pick_setting(args.port, "SQLSERVER_PORT", "1433")
     database = pick_setting(args.db, "SQLSERVER_DB")
@@ -95,6 +130,7 @@ def get_sqlserver_connection(args: argparse.Namespace) -> pyodbc.Connection:
     password = pick_setting(args.password, "SQLSERVER_PASSWORD")
     encrypt = pick_setting(args.encrypt, "SQLSERVER_ENCRYPT", "yes")
     trust_cert = pick_setting(args.trust_cert, "SQLSERVER_TRUST_CERT", "yes")
+    driver = resolve_sqlserver_driver(requested_driver)
 
     if not server or not database:
         raise ValueError(
@@ -124,7 +160,14 @@ def get_sqlserver_connection(args: argparse.Namespace) -> pyodbc.Connection:
             f"TrustServerCertificate={trust_cert};"
         )
 
-    return pyodbc.connect(conn_str)
+    try:
+        return pyodbc.connect(conn_str)
+    except pyodbc.InterfaceError as e:
+        installed = [d.strip() for d in pyodbc.drivers() if d and d.strip()]
+        raise ValueError(
+            "ODBC connection failed (IM002). Most likely SQL Server ODBC driver is missing or mismatch. "
+            f"Requested driver: {driver}. Installed drivers: {installed}"
+        ) from e
 
 
 def ensure_case_names_table(cursor: pyodbc.Cursor, table_name: str) -> None:
@@ -255,6 +298,17 @@ def migrate_project(conn: pyodbc.Connection, project_key: str, dataset: str) -> 
 
 def main() -> None:
     args = parse_args()
+
+    if args.list_drivers:
+        drivers = [d.strip() for d in pyodbc.drivers() if d and d.strip()]
+        if drivers:
+            print("Installed ODBC drivers:")
+            for d in drivers:
+                print(f"- {d}")
+        else:
+            print("No ODBC drivers detected.")
+        return
+
     if args.env_file:
         load_env_file(Path(args.env_file))
 

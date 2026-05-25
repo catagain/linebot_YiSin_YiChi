@@ -123,6 +123,18 @@ python scripts/migrate_json_to_sqlserver.py --project all --dataset all
 python scripts/migrate_json_to_sqlserver.py --project all --dataset all --host 127.0.0.1 --db linebot --user sa --password your_password
 ```
 
+先檢查目前可用 ODBC 驅動：
+
+```powershell
+python scripts/migrate_json_to_sqlserver.py --list-drivers
+```
+
+若出現 IM002（找不到驅動），請安裝 Microsoft ODBC Driver 18 for SQL Server，或指定你機器上已存在的驅動名稱：
+
+```powershell
+python scripts/migrate_json_to_sqlserver.py --project all --dataset all --host 127.0.0.1 --db linebot --driver "ODBC Driver 17 for SQL Server"
+```
+
 也可以在根目錄建立 `.env.sqlserver`（程式會自動讀取）：
 
 ```env
