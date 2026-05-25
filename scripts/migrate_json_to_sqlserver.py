@@ -44,6 +44,7 @@ def parse_args() -> argparse.Namespace:
         help="Optional env file path. Default: .env.sqlserver",
     )
     parser.add_argument("--host", help="SQL Server host.")
+    parser.add_argument("--instance", help="SQL Server instance name, e.g. SQLEXPRESS.")
     parser.add_argument("--port", help="SQL Server port. Default: 1433")
     parser.add_argument("--db", help="SQL Server database name.")
     parser.add_argument("--user", help="SQL Server username.")
@@ -124,6 +125,7 @@ def resolve_sqlserver_driver(preferred_driver: Optional[str]) -> str:
 def get_sqlserver_connection(args: argparse.Namespace) -> pyodbc.Connection:
     requested_driver = pick_setting(args.driver, "SQLSERVER_DRIVER", "ODBC Driver 18 for SQL Server")
     server = pick_setting(args.host, "SQLSERVER_HOST")
+    instance = pick_setting(args.instance, "SQLSERVER_INSTANCE")
     port = pick_setting(args.port, "SQLSERVER_PORT", "1433")
     database = pick_setting(args.db, "SQLSERVER_DB")
     user = pick_setting(args.user, "SQLSERVER_USER")
@@ -140,24 +142,33 @@ def get_sqlserver_connection(args: argparse.Namespace) -> pyodbc.Connection:
             "3) Env file: set values in --env-file (default .env.sqlserver)"
         )
 
+    if instance:
+        server_target = f"{server}\\{instance}"
+    else:
+        server_target = f"{server},{port}"
+
+    # The legacy "SQL Server" ODBC driver does not support Encrypt/TrustServerCertificate keywords.
+    is_legacy_sql_driver = driver.strip().lower() == "sql server"
+    extra_security = ""
+    if not is_legacy_sql_driver:
+        extra_security = f"Encrypt={encrypt};TrustServerCertificate={trust_cert};"
+
     if user and password:
         conn_str = (
             f"DRIVER={{{driver}}};"
-            f"SERVER={server},{port};"
+            f"SERVER={server_target};"
             f"DATABASE={database};"
             f"UID={user};"
             f"PWD={password};"
-            f"Encrypt={encrypt};"
-            f"TrustServerCertificate={trust_cert};"
+            f"{extra_security}"
         )
     else:
         conn_str = (
             f"DRIVER={{{driver}}};"
-            f"SERVER={server},{port};"
+            f"SERVER={server_target};"
             f"DATABASE={database};"
             "Trusted_Connection=yes;"
-            f"Encrypt={encrypt};"
-            f"TrustServerCertificate={trust_cert};"
+            f"{extra_security}"
         )
 
     try:

@@ -135,6 +135,12 @@ python scripts/migrate_json_to_sqlserver.py --list-drivers
 python scripts/migrate_json_to_sqlserver.py --project all --dataset all --host 127.0.0.1 --db linebot --driver "ODBC Driver 17 for SQL Server"
 ```
 
+若你的 SQL Server 是命名執行個體（例如 `SQLEXPRESS`），請改用 `--instance`，不要帶 `--port`：
+
+```powershell
+python scripts/migrate_json_to_sqlserver.py --project all --dataset all --host localhost --instance SQLEXPRESS --db LINE_BOT --driver "SQL Server"
+```
+
 也可以在根目錄建立 `.env.sqlserver`（程式會自動讀取）：
 
 ```env
@@ -158,6 +164,59 @@ python scripts/migrate_json_to_sqlserver.py --project yiqi --dataset available_a
 
 ```powershell
 python scripts/migrate_json_to_sqlserver.py --project yisin --dataset case_names
+```
+
+## JSON 搬運到 MySQL
+
+已提供 MySQL 版搬運程式：
+
+- scripts/migrate_json_to_mysql.py
+
+此程式會把兩種 JSON 匯入 MySQL，並依專案分流到不同資料表：
+
+- YiQi:
+  - addresses.json -> case_names_yiqi
+  - available_addresses.json -> available_addresses_yiqi
+- YiSin:
+  - addresses.json -> case_names_yisin
+  - available_addresses.json -> available_addresses_yisin
+
+### 1) 安裝依賴
+
+```powershell
+pip install -r scripts/requirements-mysql.txt
+```
+
+### 2) 準備連線設定
+
+可用 CLI 參數，或使用 `.env` 變數（支援 `DB_USER` 與 `DB_user`）：
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=LINE_BOT
+```
+
+### 3) 執行搬運
+
+全部專案、全部資料：
+
+```powershell
+python scripts/migrate_json_to_mysql.py --project all --dataset all
+```
+
+只搬運 YiQi 的 available_addresses.json：
+
+```powershell
+python scripts/migrate_json_to_mysql.py --project yiqi --dataset available_addresses
+```
+
+直接帶參數執行（不靠 .env）：
+
+```powershell
+python scripts/migrate_json_to_mysql.py --project all --dataset all --host localhost --user root --password your_password --db LINE_BOT
 ```
 
 ## Git 管理原則
