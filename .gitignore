@@ -1,0 +1,45 @@
+# Secrets and environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python caches and artifacts
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+**/.venv/
+**/venv/
+
+# Build/dist
+**/build/
+**/dist/
+**/*.egg-info/
+
+# IDE/editor
+.vscode/
+.idea/
+**/*.swp
+**/*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+**/*.log
+
+# Local DB files
+**/*.sqlite
+**/*.sqlite3
+
+# Local executable/tooling
+**/ngrok.exe
